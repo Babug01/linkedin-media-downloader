@@ -164,6 +164,145 @@ function formatDate(value) {
   return date && !Number.isNaN(date.valueOf()) ? date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";
 }
 
+const compact = new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 });
+const TOKEN_PATTERN = /(https?:\/\/[^\s<>"']+)|(#[\p{L}\p{N}_]+)/gu;
+
+function safeHref(raw) {
+  try {
+    const url = new URL(raw);
+    return /^https?:$/.test(url.protocol) ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+function externalLink(href, text, className) {
+  const a = el("a", className, text);
+  a.href = href;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer nofollow";
+  return a;
+}
+
+// Builds text nodes and anchors only; post text is never parsed as HTML.
+function linkify(text, resolved) {
+  const fragment = document.createDocumentFragment();
+  let last = 0;
+  for (const match of text.matchAll(TOKEN_PATTERN)) {
+    fragment.append(text.slice(last, match.index));
+    const [token, rawUrl, tag] = match;
+    if (rawUrl) {
+      const url = rawUrl.replace(/[.,;:!?)\]}'"’”]+$/, "");
+      const href = safeHref(resolved.get(url) ?? url);
+      fragment.append(href ? externalLink(href, url, "inline-link") : url, rawUrl.slice(url.length));
+    } else {
+      fragment.append(externalLink(`https://www.linkedin.com/feed/hashtag/${encodeURIComponent(tag.slice(1).toLowerCase())}/`, tag, "hashtag"));
+    }
+    last = match.index + token.length;
+  }
+  fragment.append(text.slice(last));
+  return fragment;
+}
+
+const textWrap = $("#post-text-wrap");
+const textToggle = $("#toggle-text");
+
+function setExpanded(expanded) {
+  textToggle.setAttribute("aria-expanded", String(expanded));
+  textToggle.querySelector(".label").textContent = expanded ? "Show less" : "Show more";
+  // Animate between measured pixel heights; "none" once open keeps it correct on resize.
+  textWrap.style.setProperty("--full", `${textWrap.scrollHeight}px`);
+  void textWrap.offsetHeight;
+  textWrap.classList.toggle("expanded", expanded);
+  if (!expanded) textWrap.closest(".post").scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+
+textWrap.addEventListener("transitionend", () => {
+  if (textWrap.classList.contains("expanded")) textWrap.style.setProperty("--full", "none");
+});
+
+textToggle.addEventListener("click", () => setExpanded(textToggle.getAttribute("aria-expanded") !== "true"));
+
+function renderText(meta, links) {
+  const resolved = new Map(links.filter((l) => l.shortUrl).map((l) => [l.shortUrl, l.url]));
+  const text = meta.text ?? meta.headline ?? "";
+  $("#post-text").replaceChildren(linkify(text, resolved));
+  textWrap.hidden = !text;
+  textWrap.classList.remove("expanded", "clamped");
+  textToggle.setAttribute("aria-expanded", "false");
+  textToggle.querySelector(".label").textContent = "Show more";
+  requestAnimationFrame(() => {
+    const overflowing = textWrap.scrollHeight > textWrap.clientHeight + 4;
+    textWrap.classList.toggle("clamped", overflowing);
+    textToggle.hidden = !overflowing;
+  });
+}
+
+function hostOf(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
+function renderLinks(links) {
+  $("#links").hidden = !links.length;
+  $("#links-count").textContent = String(links.length);
+  $("#link-list").replaceChildren(...links.map((link, i) => {
+    const href = safeHref(link.url);
+    const li = el("li", "link-item");
+    li.style.setProperty("--i", i);
+    if (!href) return li;
+
+    const main = externalLink(href, "", "link-main");
+    main.append(el("span", "link-icon", hostOf(href).charAt(0).toUpperCase()));
+    const body = el("span", "link-body");
+    const title = link.label && link.label !== link.url && link.label !== link.shortUrl ? link.label : hostOf(href);
+    body.append(el("span", "link-title", title), el("span", "link-url", href.replace(/^https?:\/\//, "")));
+    main.append(body);
+
+    const copy = el("button", "icon-btn copy");
+    copy.type = "button";
+    copy.title = "Copy link";
+    copy.setAttribute("aria-label", `Copy ${hostOf(href)} link`);
+    copy.append($("#copy-icon").content.cloneNode(true));
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(href);
+        copy.classList.add("done");
+        setTimeout(() => copy.classList.remove("done"), 1400);
+      } catch {
+        toast("Couldn't copy — right-click the link instead.", "warn");
+      }
+    });
+    li.append(main, copy);
+    return li;
+  }));
+}
+
+function renderAuthor(meta) {
+  const author = $("#author");
+  author.textContent = meta.author ?? "LinkedIn post";
+  const profile = safeHref(meta.authorUrl ?? "");
+  if (profile) author.href = profile;
+  else author.removeAttribute("href");
+
+  const avatar = $("#avatar");
+  avatar.hidden = !meta.avatar;
+  if (meta.avatar) avatar.src = meta.avatar;
+
+  const stats = [formatDate(meta.published)];
+  if (Number.isFinite(meta.likes)) stats.push(`${compact.format(meta.likes)} reactions`);
+  if (Number.isFinite(meta.comments)) stats.push(`${compact.format(meta.comments)} comments`);
+  $("#post-sub").textContent = stats.filter(Boolean).join(" · ");
+
+  const view = $("#view-post");
+  const postHref = safeHref(meta.url ?? "");
+  view.hidden = !postHref;
+  if (postHref) view.href = postHref;
+}
+
 function render(data) {
   postId = data.post.id;
   const base = `linkedin-${postId}`;
@@ -179,12 +318,14 @@ function render(data) {
   ];
 
   const meta = data.meta ?? {};
-  $("#author").textContent = [meta.author, formatDate(meta.published)].filter(Boolean).join(" · ") || "LinkedIn post";
-  $("#headline").textContent = meta.headline ?? "";
+  const links = data.links ?? [];
+  renderAuthor(meta);
+  renderLinks(links);
   const chips = $("#chips");
   chips.replaceChildren();
   if (data.images.length) chips.append(el("span", "chip", plural(data.images.length, "image")));
   if (data.videos.length) chips.append(el("span", "chip", plural(data.videos.length, "video")));
+  if (links.length) chips.append(el("span", "chip chip-alt", plural(links.length, "link")));
 
   if (data.missing) {
     toast(`LinkedIn only returned ${plural(data.images.length, "image")} (${data.missing} more hidden). Try again in a moment for the full set.`, "warn");
@@ -192,6 +333,7 @@ function render(data) {
 
   grid.replaceChildren(...items.map(card));
   results.hidden = false;
+  renderText(meta, links);
   results.classList.remove("reveal");
   void results.offsetWidth;
   results.classList.add("reveal");

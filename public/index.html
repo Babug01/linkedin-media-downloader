@@ -64,23 +64,46 @@
       <section id="skeleton" class="grid" hidden aria-hidden="true"></section>
 
       <section id="results" hidden>
-        <div class="results-bar glass">
-          <div class="post-info">
-            <p id="author" class="author"></p>
-            <p id="headline" class="headline"></p>
-            <div id="chips" class="chips"></div>
-          </div>
-          <div class="zip-box">
-            <button id="download-all" type="button" class="primary">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" /></svg>
-              <span class="label">Download all as ZIP</span>
-            </button>
-            <div id="progress" class="progress" hidden>
-              <div class="progress-track"><div id="progress-bar" class="progress-bar"></div></div>
-              <span id="progress-text" class="progress-text"></span>
+        <article class="post glass">
+          <header class="post-head">
+            <img id="avatar" class="avatar" alt="" referrerpolicy="no-referrer" hidden />
+            <div class="post-who">
+              <a id="author" class="author" target="_blank" rel="noopener noreferrer nofollow"></a>
+              <p id="post-sub" class="post-sub"></p>
             </div>
+            <a id="view-post" class="pill-link" target="_blank" rel="noopener noreferrer nofollow" hidden>
+              View on LinkedIn
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" /></svg>
+            </a>
+          </header>
+
+          <div id="post-text-wrap" class="post-text-wrap">
+            <div id="post-text" class="post-text"></div>
           </div>
-        </div>
+          <button id="toggle-text" type="button" class="text-toggle" aria-expanded="false" aria-controls="post-text-wrap" hidden>
+            <span class="label">Show more</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
+
+          <section id="links" class="links" hidden>
+            <h2>Links in this post <span id="links-count" class="count"></span></h2>
+            <ul id="link-list" class="link-list"></ul>
+          </section>
+
+          <footer class="post-foot">
+            <div id="chips" class="chips"></div>
+            <div class="zip-box">
+              <button id="download-all" type="button" class="primary">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" /></svg>
+                <span class="label">Download all as ZIP</span>
+              </button>
+              <div id="progress" class="progress" hidden>
+                <div class="progress-track"><div id="progress-bar" class="progress-bar"></div></div>
+                <span id="progress-text" class="progress-text"></span>
+              </div>
+            </div>
+          </footer>
+        </article>
         <div id="grid" class="grid"></div>
       </section>
 
@@ -105,6 +128,9 @@
 
     <template id="download-icon">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" /></svg>
+    </template>
+    <template id="copy-icon">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V6a2 2 0 0 1 2-2h9" /></svg>
     </template>
   </body>
 </html>

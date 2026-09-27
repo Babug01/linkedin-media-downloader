@@ -12,6 +12,8 @@ Paste a link to a public LinkedIn post and get every image and video in full qua
   - `share` and `ugcPost` URNs, encoded or plain, plus `m.linkedin.com` links
 - **Every image, not just the first few.** Multi-image posts return the full set (e.g. all 12 of a 12-image carousel), each at the highest resolution LinkedIn serves. For videos, it selects the highest-quality MP4.
 - **Download all as ZIP.** One click fetches every file in parallel (with a live progress bar) and saves a single `linkedin-<postId>-media.zip`, built entirely in your browser.
+- **Post details.** Shows the author (with avatar and profile link), date, reaction and comment counts, and a *View on LinkedIn* link, plus the full post text with **Show more / Show less** to expand or collapse it. URLs and hashtags inside the text are clickable.
+- **Links in this post.** Every outbound link in the post is listed with its domain and a copy button. `lnkd.in` short links are resolved to their real destination, and LinkedIn tracking parameters are removed.
 - **Direct downloads.** Files download from LinkedIn's CDN straight into your browser, so large videos do not pass through the server.
 - **Polished UI.** Animated aurora background, glass panels, skeleton loaders, staggered card animations, hover effects, a full-screen lightbox (arrow keys / Esc), toast notifications, and a mobile layout. Animations are disabled for users who prefer reduced motion.
 - **Predictable file names**, e.g. `linkedin-<postId>-image-01.jpg`.
@@ -34,7 +36,7 @@ sequenceDiagram
         F->>L: GET /embed/feed/update/urn:li:<type>:<id>
     end
     L-->>F: Public HTML (JSON-LD + embed markup)
-    F-->>B: JSON: post info + image / video URLs
+    F-->>B: JSON: post details, links, image / video URLs
     B->>C: Fetch media directly (CORS-enabled CDN)
     C-->>B: Files, saved individually or zipped in-browser
 ```
@@ -45,7 +47,8 @@ The function is needed because browsers cannot read LinkedIn pages cross-origin.
 
 ## Security
 
-- **No open proxy.** The function never fetches the URL you submit. It extracts the numeric post ID and fetches two fixed LinkedIn URLs rebuilt from that ID.
+- **No open proxy.** The function never fetches the URL you submit. It extracts the numeric post ID and fetches two fixed LinkedIn URLs rebuilt from that ID. To resolve short links it fetches only `https://lnkd.in/<code>` (code validated as 4–20 URL-safe characters, max 10 per post, 5-second timeout); it never fetches the destination site.
+- **Safe rendering of post content.** Post text is inserted as plain text nodes, never parsed as HTML. Only `http(s)` links are rendered, always with `target="_blank"` and `rel="noopener noreferrer nofollow"`. Author, avatar, and post URLs are accepted only from LinkedIn hosts.
 - **Strict host allowlists.** Post links must use HTTPS and `linkedin.com`. Returned media URLs are limited to `media.licdn.com` and `dms.licdn.com`.
 - **Bounded upstream requests.** Requests time out after 10 seconds, do not follow redirects, and read at most 3 MB of HTML.
 - **Hardened responses.** A strict Content Security Policy, `no-referrer` policy, and `nosniff` header apply everywhere. The UI renders content only through DOM APIs, never through `innerHTML`.

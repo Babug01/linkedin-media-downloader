@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { embedUrl, extractMedia, extractPostJsonLd, hiddenImageCount, parsePostUrl, postPageUrl } from "../lib/linkedin.js";
+import {
+  cleanLink,
+  embedUrl,
+  extractMedia,
+  extractPostJsonLd,
+  extractPostLinks,
+  hiddenImageCount,
+  parsePostUrl,
+  postPageUrl,
+  shortLinkCode,
+  shortLinkTarget,
+} from "../lib/linkedin.js";
 
 const ID = "7433575342675722240";
 
@@ -55,7 +66,79 @@ test("reads every post image and metadata from JSON-LD, ignoring comment avatars
   assert.ok(images[0].url.includes("/A0/") && images[11].url.includes("/A11/"));
   assert.ok(!images.some((i) => i.url.includes("COMMENTER")));
   assert.equal(videos.length, 0);
-  assert.deepEqual(meta, { author: "Jane Doe", headline: "Linux permissions cheat sheet", published: "2026-09-20T10:00:00.000Z" });
+  assert.equal(meta.author, "Jane Doe");
+  assert.equal(meta.headline, "Linux permissions cheat sheet");
+  assert.equal(meta.published, "2026-09-20T10:00:00.000Z");
+});
+
+test("reads post text, author profile, avatar, stats and canonical URL", () => {
+  const post = {
+    "@type": "SocialMediaPosting",
+    "@id": "https://www.linkedin.com/posts/jane_topic-activity-1-AbC",
+    articleBody: "Line one\nLine two https://lnkd.in/abcDEF12",
+    author: {
+      name: "Jane Doe",
+      url: "https://in.linkedin.com/in/jane",
+      image: { url: "https://media.licdn.com/dms/image/v2/X/profile-displayphoto-scale_200_200/B/0/1" },
+    },
+    interactionStatistic: [
+      { interactionType: "http://schema.org/LikeAction", userInteractionCount: 901 },
+      { interactionType: "https://schema.org/CommentAction", userInteractionCount: 17 },
+    ],
+  };
+  const { meta } = extractPostJsonLd(`<script type="application/ld+json">${JSON.stringify(post)}</script>`);
+  assert.equal(meta.text, "Line one\nLine two https://lnkd.in/abcDEF12");
+  assert.equal(meta.authorUrl, "https://in.linkedin.com/in/jane");
+  assert.match(meta.avatar, /^https:\/\/media\.licdn\.com\//);
+  assert.equal(meta.likes, 901);
+  assert.equal(meta.comments, 17);
+  assert.equal(meta.url, post["@id"]);
+});
+
+test("drops author, avatar and post URLs that are not on LinkedIn hosts", () => {
+  const post = {
+    "@type": "SocialMediaPosting",
+    "@id": "javascript:alert(1)",
+    author: { name: "X", url: "https://evil.example/in/x", image: { url: "https://evil.example/a.jpg" } },
+  };
+  const { meta } = extractPostJsonLd(`<script type="application/ld+json">${JSON.stringify(post)}</script>`);
+  assert.equal(meta.url, undefined);
+  assert.equal(meta.authorUrl, undefined);
+  assert.equal(meta.avatar, undefined);
+});
+
+test("extracts outbound links from the commentary, unwrapping LinkedIn redirects", () => {
+  const redir = (u) => `https://www.linkedin.com/redir/redirect?url=${encodeURIComponent(u)}&amp;urlhash=x&amp;trk=public_post-text`;
+  const html = `
+    <a href="${redir("https://unrelated.example")}">before commentary</a>
+    <p class="x" data-test-id="main-feed-activity-card__commentary">
+      Shop: <a href="${redir("http://devopsstore.online")}">devopsstore.online</a>
+      Guide: <a href="${redir("https://lnkd.in/dfsCPgBE")}">https://lnkd.in/dfsCPgBE</a>
+      <a href="https://www.linkedin.com/signup/cold-join?session_redirect=x">#Linux</a>
+      <a href="${redir("javascript:alert(1)")}">bad</a>
+    </p>
+    <a href="${redir("https://more-posts.example")}">after</a>`;
+  const text = "Guide: https://lnkd.in/dfsCPgBE. Docs (https://docs.example.com/path).";
+
+  assert.deepEqual(extractPostLinks(html, text), [
+    { url: "http://devopsstore.online/", label: "devopsstore.online" },
+    { url: "https://lnkd.in/dfsCPgBE", label: "https://lnkd.in/dfsCPgBE" },
+    { url: "https://docs.example.com/path", label: "https://docs.example.com/path" },
+  ]);
+});
+
+test("recognises lnkd.in short links and reads their destination", () => {
+  assert.equal(cleanLink("https://lnkd.in/abcd?trk=public_post-text"), "https://lnkd.in/abcd");
+  assert.equal(cleanLink("http://shop.example/?q=1&trk=x"), "http://shop.example/?q=1");
+  assert.equal(cleanLink("javascript:alert(1)"), undefined);
+  assert.equal(shortLinkCode("https://lnkd.in/dfsCPgBE"), "dfsCPgBE");
+  assert.equal(shortLinkCode("https://lnkd.in/a/b"), null);
+  assert.equal(shortLinkCode("https://lnkd.in.evil.example/abcd"), null);
+  assert.equal(shortLinkCode("https://example.com/abcd"), null);
+
+  const page = `<a href="https://www.linkedin.com/help/x">help</a><a href="https://www.instagram.com/devops?x=1&amp;y=2">go</a>`;
+  assert.equal(shortLinkTarget(page), "https://www.instagram.com/devops?x=1&y=2");
+  assert.equal(shortLinkTarget(`<a href="javascript:alert(1)">x</a>`), undefined);
 });
 
 test("reads videos from JSON-LD VideoObject nodes", () => {
