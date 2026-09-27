@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { embedUrl, extractMedia, parsePostUrl } from "../lib/linkedin.js";
+import { embedUrl, extractMedia, extractPostJsonLd, hiddenImageCount, parsePostUrl, postPageUrl } from "../lib/linkedin.js";
 
 const ID = "7433575342675722240";
 
@@ -34,6 +34,47 @@ test("rejects non-LinkedIn, non-HTTPS, and malformed input", () => {
 
 test("builds the embed URL from parsed parts only", () => {
   assert.equal(embedUrl({ type: "ugcPost", id: ID }), `https://www.linkedin.com/embed/feed/update/urn:li:ugcPost:${ID}`);
+  assert.equal(postPageUrl({ type: "activity", id: ID }), `https://www.linkedin.com/feed/update/urn:li:activity:${ID}/`);
+});
+
+test("reads every post image and metadata from JSON-LD, ignoring comment avatars", () => {
+  const img = (asset) => `https://media.licdn.com/dms/image/v2/${asset}/feedshare-shrink_1280/B/0/1?e=2147483647&v=beta&t=x`;
+  const post = {
+    "@context": "http://schema.org",
+    "@type": "SocialMediaPosting",
+    headline: "Linux permissions cheat sheet",
+    datePublished: "2026-09-20T10:00:00.000Z",
+    author: { "@type": "Person", name: "Jane Doe", image: { url: img("AUTHOR").replace("feedshare", "profile") } },
+    image: Array.from({ length: 12 }, (_, i) => ({ "@type": "ImageObject", url: img(`A${i}`) })),
+    comment: [{ "@type": "Comment", author: { image: { url: img("COMMENTER") } } }],
+  };
+  const html = `<script type="application/ld+json">${JSON.stringify(post)}</script><script type="application/ld+json">{bad json</script>`;
+
+  const { images, videos, meta } = extractPostJsonLd(html);
+  assert.equal(images.length, 12);
+  assert.ok(images[0].url.includes("/A0/") && images[11].url.includes("/A11/"));
+  assert.ok(!images.some((i) => i.url.includes("COMMENTER")));
+  assert.equal(videos.length, 0);
+  assert.deepEqual(meta, { author: "Jane Doe", headline: "Linux permissions cheat sheet", published: "2026-09-20T10:00:00.000Z" });
+});
+
+test("reads videos from JSON-LD VideoObject nodes", () => {
+  const video = {
+    "@type": "VideoObject",
+    contentUrl: "https://dms.licdn.com/playlist/vid/v2/VID1/mp4-720p-30fp-crf28/B/0/1?e=1&t=y",
+  };
+  const { videos } = extractPostJsonLd(`<script type="application/ld+json">${JSON.stringify(video)}</script>`);
+  assert.equal(videos.length, 1);
+  assert.equal(videos[0].variant, "mp4-720p-30fp-crf28");
+});
+
+test("reads the embed page's hidden-image overlay count", () => {
+  assert.equal(hiddenImageCount('<span class="overlay">\n  +7\n  </span>'), 7);
+  assert.equal(hiddenImageCount("<p>C++ 20</p>"), 0);
+});
+
+test("returns nothing when the page has no JSON-LD", () => {
+  assert.deepEqual(extractPostJsonLd("<html></html>"), { images: [], videos: [], meta: {} });
 });
 
 test("extracts post images, keeps order, picks the largest variant, skips avatars", () => {

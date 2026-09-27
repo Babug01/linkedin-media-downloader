@@ -1,6 +1,6 @@
 # LinkedIn Media Downloader
 
-Paste a link to a public LinkedIn post, preview its images and videos, and download them in full quality. The app has no accounts, stores nothing, and requires no LinkedIn login.
+Paste a link to a public LinkedIn post and get every image and video in full quality — download them one at a time, or all at once as a single ZIP. No accounts, no tracking, nothing stored, no LinkedIn login needed.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Babug01/linkedin-media-downloader)
 
@@ -10,11 +10,13 @@ Paste a link to a public LinkedIn post, preview its images and videos, and downl
   - `https://www.linkedin.com/feed/update/urn:li:activity:<id>/`
   - `https://www.linkedin.com/posts/<author>_<slug>-activity-<id>-<hash>`
   - `share` and `ugcPost` URNs, encoded or plain, plus `m.linkedin.com` links
-- **Images and videos.** Finds every image in a multi-image post and selects the highest-resolution version available. For videos, it selects the highest-quality MP4.
+- **Every image, not just the first few.** Multi-image posts return the full set (e.g. all 12 of a 12-image carousel), each at the highest resolution LinkedIn serves. For videos, it selects the highest-quality MP4.
+- **Download all as ZIP.** One click fetches every file in parallel (with a live progress bar) and saves a single `linkedin-<postId>-media.zip`, built entirely in your browser.
 - **Direct downloads.** Files download from LinkedIn's CDN straight into your browser, so large videos do not pass through the server.
-- **Download all.** Saves every media item with one click and gives each file a predictable name, e.g. `linkedin-<postId>-image-1.jpg`.
+- **Polished UI.** Animated aurora background, glass panels, skeleton loaders, staggered card animations, hover effects, a full-screen lightbox (arrow keys / Esc), toast notifications, and a mobile layout. Animations are disabled for users who prefer reduced motion.
+- **Predictable file names**, e.g. `linkedin-<postId>-image-01.jpg`.
 - **Private by design.** Uses no cookies, credentials, analytics, or database.
-- **Lightweight.** Runs on plain HTML, CSS, and JavaScript without a framework or build step. The server side is one small Vercel Function.
+- **Lightweight.** Runs on plain HTML, CSS, and JavaScript with zero dependencies and no build step. The server side is one small Vercel Function.
 
 ## How it works
 
@@ -22,22 +24,28 @@ Paste a link to a public LinkedIn post, preview its images and videos, and downl
 sequenceDiagram
     participant B as Browser
     participant F as /api/extract (Vercel Function)
-    participant L as linkedin.com (embed page)
+    participant L as linkedin.com (post + embed pages)
     participant C as media.licdn.com / dms.licdn.com
     B->>F: GET /api/extract?url=<post link>
     F->>F: Validate link, extract post ID
-    F->>L: GET /embed/feed/update/urn:li:<type>:<id>
-    L-->>F: Public embed HTML
-    F-->>B: JSON list of image / video URLs
+    par
+        F->>L: GET /feed/update/urn:li:<type>:<id>/
+    and
+        F->>L: GET /embed/feed/update/urn:li:<type>:<id>
+    end
+    L-->>F: Public HTML (JSON-LD + embed markup)
+    F-->>B: JSON: post info + image / video URLs
     B->>C: Fetch media directly (CORS-enabled CDN)
-    C-->>B: File, saved as download
+    C-->>B: Files, saved individually or zipped in-browser
 ```
 
-The function is needed because browsers cannot read LinkedIn pages cross-origin. LinkedIn's media CDN does send `Access-Control-Allow-Origin: *`, so the browser downloads files itself. That keeps downloads outside Vercel's 4.5 MB function response limit.
+The post page's `SocialMediaPosting` JSON-LD lists **every** image in the post, while the embed page only renders the first five with a "+N" overlay. The function reads the JSON-LD, uses the embed page as a fallback and for video markup, and retries when LinkedIn occasionally serves a page with a partial image list. If images are still missing, the UI says so and the result is not cached.
+
+The function is needed because browsers cannot read LinkedIn pages cross-origin. LinkedIn's media CDN does send `Access-Control-Allow-Origin: *`, so the browser downloads files — and builds the ZIP — itself. That keeps downloads outside Vercel's 4.5 MB function response limit.
 
 ## Security
 
-- **No open proxy.** The function never fetches the URL you submit. It extracts the numeric post ID and fetches the fixed LinkedIn embed URL rebuilt from that ID.
+- **No open proxy.** The function never fetches the URL you submit. It extracts the numeric post ID and fetches two fixed LinkedIn URLs rebuilt from that ID.
 - **Strict host allowlists.** Post links must use HTTPS and `linkedin.com`. Returned media URLs are limited to `media.licdn.com` and `dms.licdn.com`.
 - **Bounded upstream requests.** Requests time out after 10 seconds, do not follow redirects, and read at most 3 MB of HTML.
 - **Hardened responses.** A strict Content Security Policy, `no-referrer` policy, and `nosniff` header apply everywhere. The UI renders content only through DOM APIs, never through `innerHTML`.
@@ -45,10 +53,13 @@ The function is needed because browsers cannot read LinkedIn pages cross-origin.
 ## Project structure
 
 ```
-api/extract.js           Vercel Function: validates the link and returns media URLs
-lib/linkedin.js          URL parsing and media extraction (pure functions)
-public/                  Static frontend (index.html, app.js, styles.css)
-test/linkedin.test.js    Unit tests (node:test, no dependencies)
+api/extract.js           Vercel Function: validates the link, fetches LinkedIn, returns media URLs
+lib/linkedin.js          URL parsing, JSON-LD and HTML media extraction (pure functions)
+public/index.html        Page markup
+public/app.js            UI logic: results grid, lightbox, downloads, ZIP progress
+public/zip.js            Dependency-free ZIP writer (STORE method, CRC-32)
+public/styles.css        Styling and animations
+test/                    Unit tests (node:test, no dependencies)
 vercel.json              Security headers
 ```
 
@@ -75,7 +86,8 @@ The app will be live at `https://<project-name>.vercel.app`. Future pushes to `m
 
 - **Public posts only.** Private, connections-only, and deleted posts return an error.
 - **Supported media:** images and native video. Documents/carousels (PDF), articles, polls, and link previews are not supported.
-- LinkedIn can change its embed markup or rate-limit requests at any time, so extraction may break without notice.
+- LinkedIn can change its page markup or rate-limit requests at any time, so extraction may break without notice. Occasionally LinkedIn returns only part of a post's image list; the app retries automatically and tells you if some images are still missing.
+- The ZIP is built in browser memory, so posts with very large videos need enough free RAM.
 - If the CDN refuses a cross-origin download, the file opens in a new tab so you can save it manually.
 
 ## Responsible use

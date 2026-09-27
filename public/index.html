@@ -3,21 +3,41 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Download images and videos from public LinkedIn posts." />
+    <meta name="description" content="Download every image and video from a public LinkedIn post — one by one or all at once as a ZIP." />
+    <meta name="theme-color" content="#0b1020" />
     <title>LinkedIn Media Downloader</title>
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="/styles.css" />
-    <script src="/app.js" defer></script>
+    <script type="module" src="/app.js"></script>
   </head>
   <body>
+    <div class="aurora" aria-hidden="true">
+      <span class="blob blob-1"></span>
+      <span class="blob blob-2"></span>
+      <span class="blob blob-3"></span>
+      <span class="grain"></span>
+    </div>
+
     <main>
-      <header>
-        <h1>LinkedIn Media Downloader</h1>
-        <p>Paste a public LinkedIn post link to preview and download its images and videos.</p>
+      <header class="hero">
+        <div class="badge">
+          <span class="badge-dot"></span>
+          Free · No login · Nothing stored
+        </div>
+        <h1>
+          <span class="gradient-text">LinkedIn</span> Media Downloader
+        </h1>
+        <p class="tagline">
+          Paste a public post link and grab every image and video in full quality &mdash; one at a time or all together as a ZIP.
+        </p>
       </header>
 
-      <form id="form" novalidate>
+      <form id="form" class="search glass" novalidate>
         <label for="url" class="visually-hidden">LinkedIn post URL</label>
+        <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" />
+          <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" />
+        </svg>
         <input
           id="url"
           name="url"
@@ -28,23 +48,63 @@
           placeholder="https://www.linkedin.com/feed/update/urn:li:activity:..."
           required
         />
-        <button id="submit" type="submit">Get media</button>
+        <button id="paste" type="button" class="ghost" title="Paste from clipboard">Paste</button>
+        <button id="submit" type="submit" class="primary">
+          <span class="label">Get media</span>
+          <span class="spinner" aria-hidden="true"></span>
+        </button>
       </form>
 
-      <p id="status" role="status" aria-live="polite"></p>
+      <ul class="steps" aria-label="How it works">
+        <li><span>1</span>Copy a post link from LinkedIn</li>
+        <li><span>2</span>Paste it above</li>
+        <li><span>3</span>Download files or the whole ZIP</li>
+      </ul>
+
+      <section id="skeleton" class="grid" hidden aria-hidden="true"></section>
 
       <section id="results" hidden>
-        <div class="results-bar">
-          <h2 id="summary"></h2>
-          <button id="download-all" type="button" class="secondary">Download all</button>
+        <div class="results-bar glass">
+          <div class="post-info">
+            <p id="author" class="author"></p>
+            <p id="headline" class="headline"></p>
+            <div id="chips" class="chips"></div>
+          </div>
+          <div class="zip-box">
+            <button id="download-all" type="button" class="primary">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" /></svg>
+              <span class="label">Download all as ZIP</span>
+            </button>
+            <div id="progress" class="progress" hidden>
+              <div class="progress-track"><div id="progress-bar" class="progress-bar"></div></div>
+              <span id="progress-text" class="progress-text"></span>
+            </div>
+          </div>
         </div>
         <div id="grid" class="grid"></div>
       </section>
 
       <footer>
-        Works with public posts only. Respect the creator's rights &mdash; only download media you own or have permission to use.
+        Works with public posts only. Respect creators' rights &mdash; download only media you own or have permission to use.
         Not affiliated with LinkedIn.
       </footer>
     </main>
+
+    <dialog id="lightbox" class="lightbox" aria-label="Media preview">
+      <button type="button" class="lb-close icon-btn" data-action="close" aria-label="Close">&times;</button>
+      <button type="button" class="lb-nav lb-prev icon-btn" data-action="prev" aria-label="Previous">&#8249;</button>
+      <figure class="lb-stage"></figure>
+      <button type="button" class="lb-nav lb-next icon-btn" data-action="next" aria-label="Next">&#8250;</button>
+      <div class="lb-bar">
+        <span id="lb-caption"></span>
+        <button type="button" class="primary small" data-action="download">Download</button>
+      </div>
+    </dialog>
+
+    <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+
+    <template id="download-icon">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" /></svg>
+    </template>
   </body>
 </html>
