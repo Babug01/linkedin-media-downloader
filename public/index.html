@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Download images and videos from public LinkedIn posts." />
+    <title>LinkedIn Media Downloader</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>LinkedIn Media Downloader</h1>
+        <p>Paste a public LinkedIn post link to preview and download its images and videos.</p>
+      </header>
+
+      <form id="form" novalidate>
+        <label for="url" class="visually-hidden">LinkedIn post URL</label>
+        <input
+          id="url"
+          name="url"
+          type="url"
+          inputmode="url"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="https://www.linkedin.com/feed/update/urn:li:activity:..."
+          required
+        />
+        <button id="submit" type="submit">Get media</button>
+      </form>
+
+      <p id="status" role="status" aria-live="polite"></p>
+
+      <section id="results" hidden>
+        <div class="results-bar">
+          <h2 id="summary"></h2>
+          <button id="download-all" type="button" class="secondary">Download all</button>
+        </div>
+        <div id="grid" class="grid"></div>
+      </section>
+
+      <footer>
+        Works with public posts only. Respect the creator's rights &mdash; only download media you own or have permission to use.
+        Not affiliated with LinkedIn.
+      </footer>
+    </main>
+  </body>
+</html>

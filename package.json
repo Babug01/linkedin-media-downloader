@@ -1,0 +1,15 @@
+{
+  "name": "linkedin-media-downloader",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Download images and videos from public LinkedIn posts. Static frontend + one Vercel Function.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vercel dev",
+    "test": "node --test"
+  }
+}

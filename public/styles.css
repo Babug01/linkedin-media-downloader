@@ -1,0 +1,146 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f4f2ee;
+  --surface: #ffffff;
+  --text: #1d1d1d;
+  --muted: #5e5e5e;
+  --border: #d9d6d0;
+  --accent: #0a66c2;
+  --accent-hover: #004182;
+  --error: #b42318;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111315;
+    --surface: #1b1f23;
+    --text: #e8e8e8;
+    --muted: #a0a4a8;
+    --border: #33383d;
+    --accent: #71b7fb;
+    --accent-hover: #a8d4ff;
+    --error: #ff8a80;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 3rem 1rem 2rem;
+}
+
+h1 { margin: 0 0 0.25rem; font-size: clamp(1.6rem, 4vw, 2.2rem); }
+h2 { margin: 0; font-size: 1.1rem; }
+header p { margin: 0 0 1.5rem; color: var(--muted); }
+
+form { display: flex; gap: 0.5rem; }
+
+input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.75rem 1rem;
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+button {
+  padding: 0.7rem 1.3rem;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+@media (prefers-color-scheme: dark) { button { color: #111315; } }
+
+button:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+button:disabled { opacity: 0.6; cursor: progress; }
+
+button.secondary { color: var(--accent); background: transparent; }
+button.secondary:hover:not(:disabled) { color: var(--accent-hover); background: transparent; }
+
+#status { min-height: 1.5rem; margin: 1rem 0; color: var(--muted); }
+#status.error { color: var(--error); }
+
+.results-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.card img, .card video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  background: #0000000d;
+}
+
+.card figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.9rem;
+}
+
+.card figcaption button { padding: 0.4rem 0.9rem; font-size: 0.85rem; }
+
+footer {
+  margin-top: 3rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  form { flex-direction: column; }
+  main { padding-top: 2rem; }
+}
